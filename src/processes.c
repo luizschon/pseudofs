@@ -5,31 +5,24 @@
 /* Função que lê arquivo TXT de processos e retorna uma lista de 
  * processos com ID, prioridade e tempo de CPU. */
 p_list_t * parse_processes(char *filename) {
-    p_list_t * list = p_list_init();
-    process_t * p = NULL;
-
     // Abre arquivo de processos
     FILE *p_file = NULL; 
-    p_file = fopen(filename, "r");
+    p_file = fopen_or_panic(filename, "r");
 
     // Variáveis para armazenar valores lidos por linha
     int id, priority, cpu_time;
+    p_list_t * list = p_list_init();
+    process_t p;
 
-    if (p_file != NULL) {
-        // Lê arquivo até encontrar um EOF
-        while (fscanf(p_file, "%d, %d, %d", &id, &priority, &cpu_time) != EOF) {
-            p = (process_t *) alloc_or_panic(sizeof(process_t));
-            p->id = id;
-            p->priority = priority;
-            p->cpu_time = cpu_time;
-            p_list_append(list, p);
-        }
-        fclose(p_file);
-    } else {
-        free(list);
-        fprintf(stderr, COLOR_RED"[ERRO]"COLOR_RST" Nao foi possivel abrir o arquivo %s.\n", filename);
-        exit(EXIT_FAILURE);
+    // Lê arquivo até encontrar um EOF
+    while (fscanf(p_file, "%d, %d, %d", &id, &priority, &cpu_time) != EOF) {
+        p.id = id;
+        p.priority = priority;
+        p.cpu_time = cpu_time;
+        p_list_append(list, p);
     }
+    fclose(p_file);
+
     return list;
 }
 

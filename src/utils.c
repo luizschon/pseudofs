@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "utils.h"
 
-void * alloc_or_panic (size_t size) {
+void * alloc_or_panic(size_t size) {
     void *ptr = NULL;
     ptr = malloc(size);
 
@@ -12,7 +12,7 @@ void * alloc_or_panic (size_t size) {
     return ptr;
 }
 
-void * realloc_or_panic (void *ptr, size_t size) {
+void * realloc_or_panic(void *ptr, size_t size) {
     void *ptr_aux = NULL;
     ptr_aux = realloc(ptr, size);
 
@@ -23,3 +23,13 @@ void * realloc_or_panic (void *ptr, size_t size) {
     return ptr_aux;
 }
 
+FILE * fopen_or_panic(const char *filename, const char *mode) {
+    FILE * file = NULL;
+    file = fopen(filename, mode);
+
+    if (file == NULL) {
+        fprintf(stderr, COLOR_RED"[ERRO]"COLOR_RST" Nao foi possivel abrir o arquivo %s.\n", filename);
+        exit(EXIT_FAILURE);
+    }
+    return file;
+}
