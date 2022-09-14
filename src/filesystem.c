@@ -2,14 +2,30 @@
 #include "filesystem.h"
 #include "utils.h"
 
-fs_t * fs_init(int alloc_type, size_t size) {
+fs_t * fs_init(alloc_type type, size_t size) {
     fs_t *filesystem = alloc_or_panic(sizeof(fs_t));
-    filesystem->alloc_type = alloc_type;
+    filesystem->type = type;
     filesystem->size = size;
     filesystem->blocks = alloc_or_panic(size * sizeof(block));
 
     // Inicializa disco com caracteres 0 (zero)
     memset(filesystem->blocks, '0', size);
+
+    return filesystem;
+}
+
+/* Função responsável por criar sistema de arquivos usando dados providos
+ * no arquivo de operações. */
+fs_t * create_filesystem(FILE *operations_file) {
+    alloc_type type;
+    size_t disk_size;
+    unsigned int num_file;
+
+    // Lê informações sobre o sistema de arquivos no .txt de operações
+    fscanf(operations_file, "%d\n%zu\n%u", &type, &disk_size, &num_file);
+
+    fs_t *filesystem = fs_init(type, disk_size);
+    fs_populate_blocks(operations_file, filesystem, num_file);
 
     return filesystem;
 }
@@ -43,6 +59,11 @@ void fs_add_file(fs_t *filesystem, size_t idx, char filename, size_t size) {
         fprintf(stderr, COLOR_RED"[ERRO]"COLOR_RST" Nao pode inserir arquivo no disco, "
                 "arquivo %c ultrapassa limite de armazenamento.\n", filename);
     }
+}
+
+void fs_destroy(fs_t *filesystem) {
+    free(filesystem->blocks);
+    free(filesystem);
 }
 
 void dump_blocks(fs_t *filesystem) {

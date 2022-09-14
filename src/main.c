@@ -26,6 +26,7 @@ int main(int argc, char *argv[]) {
     dump_blocks(fs);
 
     p_list_destroy(p_list);
+    fs_destroy(fs);
 
     return 0;
 }
