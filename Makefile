@@ -1,6 +1,6 @@
 # Variáveis de compilação
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -std=c99 -O2
+CFLAGS = -Wall -Wextra -Wpedantic -std=c99
 LIBS = -pthread
 
 # Nome dos diretórios
@@ -18,7 +18,7 @@ ZIGNORE = ./$(OBJ)/\* $(BIN)
 
 all: release
 
-release: CFLAGS += -DNDEBUG
+release: CFLAGS += -DNDEBUG -02
 release: $(BIN)
 
 debug: CFLAGS += -g -fno-omit-frame-pointer
