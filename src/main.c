@@ -21,6 +21,8 @@ int main(int argc, char *argv[]) {
     fs_add_file(fs, 0, 'A', 3);
     fs_add_file(fs, 4, 'B', 1);
     fs_add_file(fs, 7, 'C', 2);
+    fs_add_file(fs, 8, 'X', 6);
+    fs_add_file(fs, 13, 'Y', 1);
     dump_blocks(fs);
 
     p_list_destroy(p_list);

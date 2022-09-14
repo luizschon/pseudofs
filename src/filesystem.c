@@ -26,10 +26,10 @@ void fs_populate_blocks(FILE *operations_file, fs_t *filesystem, unsigned int nu
         fscanf(operations_file, "%c, %zu, %zu", &filename, &idx, &size);
 
         // Checa se o arquivo sendo inserido respeita os limites do disco
-        if (idx >= filesystem->size || idx+size >= filesystem->size) {
+        if (idx <= filesystem->size && idx+size <= filesystem->size) {
             memset(&filesystem->blocks[idx], filename, size);
         } else {
-            fprintf(stderr, COLOR_RED"[ERRO]"COLOR_RST" Erro ao popular disco, "
+            fprintf(stderr, COLOR_RED"[ERRO]"COLOR_RST" Nao pode popular disco, "
                     "arquivo %c ultrapassa limite de armazenamento.\n", filename);
         }
     }
@@ -37,10 +37,10 @@ void fs_populate_blocks(FILE *operations_file, fs_t *filesystem, unsigned int nu
 
 void fs_add_file(fs_t *filesystem, size_t idx, char filename, size_t size) {
     // Checa se o arquivo sendo inserido respeita os limites do disco
-    if (idx <= filesystem->size || idx+size <= filesystem->size) {
+    if (idx <= filesystem->size && idx+size <= filesystem->size) {
         memset(&filesystem->blocks[idx], filename, size);
     } else {
-        fprintf(stderr, COLOR_RED"[ERRO]"COLOR_RST" Erro ao inserir arquivo no disco, "
+        fprintf(stderr, COLOR_RED"[ERRO]"COLOR_RST" Nao pode inserir arquivo no disco, "
                 "arquivo %c ultrapassa limite de armazenamento.\n", filename);
     }
 }
