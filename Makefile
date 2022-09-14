@@ -15,6 +15,7 @@ BIN = pseudofs
 # Nome do arquivo zip e arquivos a serem ignorados
 ZNAME = Trabalho2_SO_2022-1.zip
 ZIGNORE = ./$(OBJ)/\* $(BIN)
+
 all: release
 
 release: CFLAGS += -DNDEBUG
