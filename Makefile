@@ -18,7 +18,7 @@ ZIGNORE = ./$(OBJ)/\* $(BIN)
 
 all: release
 
-release: CFLAGS += -DNDEBUG -02
+release: CFLAGS += -DNDEBUG -O2
 release: $(BIN)
 
 debug: CFLAGS += -g -fno-omit-frame-pointer

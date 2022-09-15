@@ -7,7 +7,6 @@ fs_t * fs_init(alloc_type type, size_t size) {
     filesystem->type = type;
     filesystem->size = size;
     filesystem->blocks = alloc_or_panic(size * sizeof(block));
-
     // Inicializa disco com caracteres 0 (zero)
     memset(filesystem->blocks, '0', size);
 
@@ -59,6 +58,29 @@ void fs_add_file(fs_t *filesystem, size_t idx, char filename, size_t size) {
         fprintf(stderr, COLOR_RED"[ERRO]"COLOR_RST" Nao pode inserir arquivo no disco, "
                 "arquivo %c ultrapassa limite de armazenamento.\n", filename);
     }
+}
+
+/* Função que recebe arquivo para criado e decide aonde no
+ * disco o arquivo será inserido baseado no tipo de alocação
+ * e os blocos livres e ocupa esses blocos. */
+void fs_create_file(fs_t *fs, char filename, size_t size) {
+    switch (fs->type) {
+        case CONTIGUOUS:
+            /* Codigo para alocação contígua. */
+            break;
+        case LINKED:
+            /* Codigo para alocação encadeada. */
+            break;
+        case INDEXED:
+            /* Codigo para alocação indexada. */
+            break;
+    }
+}
+
+/* Função que recebe arquivo para ser deleteado, sobrescreve
+ * os blocos e os marca como blocos livres. */
+void fs_delete_file(fs_t *fs, char filename) {
+
 }
 
 void fs_destroy(fs_t *filesystem) {
