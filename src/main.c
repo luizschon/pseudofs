@@ -3,6 +3,7 @@
 #include <string.h>
 #include "processes.h"
 #include "filesystem.h"
+#include "utils.h"
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
@@ -10,22 +11,19 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    p_list_t *p_list = parse_processes(argv[1]);
+    p_list_t *processes = parse_processes(argv[1]);
 
 #ifndef NDEBUG
-    dump_processes(p_list);
+    dump_processes(processes);
 #endif
 
-    // Testa funções de fs
-    fs_t *fs = fs_init(1, 12);
-    fs_add_file(fs, 0, 'A', 3);
-    fs_add_file(fs, 4, 'B', 1);
-    fs_add_file(fs, 7, 'C', 2);
-    fs_add_file(fs, 8, 'X', 6);
-    fs_add_file(fs, 13, 'Y', 1);
-    dump_blocks(fs);
+    FILE *op_file = fopen_or_panic(argv[2], "r");
 
-    p_list_destroy(p_list);
+    fs_t *fs = create_filesystem(op_file);
+    dump_blocks(fs);
+    simulate_fs(op_file, fs, processes);
+
+    p_list_destroy(processes);
     fs_destroy(fs);
 
     return 0;

@@ -19,6 +19,7 @@ p_list_t * parse_processes(char *filename) {
         p.id = id;
         p.priority = priority;
         p.cpu_time = cpu_time;
+        p.exec_count = 0;
         p_list_append(list, p);
     }
     fclose(p_file);
@@ -57,4 +58,13 @@ void p_list_append(p_list_t *list, process_t process) {
 void p_list_destroy(p_list_t *list) {
     free(list->processes);
     free(list);
+}
+
+
+process_t * get_process(p_list_t *list, int process_id) {
+    for (size_t i = 0; i < list->size; i++)  {
+        if (list->processes[i].id == process_id)
+            return &list->processes[i];
+    }
+    return NULL; 
 }

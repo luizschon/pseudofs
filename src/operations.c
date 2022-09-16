@@ -3,6 +3,13 @@
 #include "filesystem.h"
 #include "utils.h"
 
+op_result_info_t * op_result_info_init(unsigned int op_number, op_t operation) {
+    op_result_info_t *res = (op_result_info_t *) alloc_or_panic(sizeof(op_result_info_t));
+    res->op_number = op_number;
+    res->operation = operation;
+    return res;
+}
+
 op_log_t * op_log_init() {
     op_log_t *log = (op_log_t *) alloc_or_panic(sizeof(op_log_t));
     log->size = 0;
@@ -28,21 +35,9 @@ void dump_log(op_log_t *log) {
     for (size_t i = 0; i < log->size; i++) {
         res = log->res_arr[i];
         printf(COLOR_GRN"\n[INFO]\n"COLOR_RST);
-        printf("Operacao n.%d:\n", res.op_number);
+        printf("Operacao n.%d - %s:\n", res.op_number, res.description);
         printf("    STATUS: %s\n"COLOR_RST, (res.s == SUCCESS) ? COLOR_GRN"SUCESSO" : COLOR_RED"FALHA");
-        printf("    DESCRICAO: %s\n", res.description);
+        printf("    RESULTADO: %s\n", res.message);
     }
 }
 
-void parse_operations(const char *filename, p_list_t *process_list) {
-    FILE * op_file = NULL;
-    op_file = fopen_or_panic(filename, "r");
-
-    alloc_type type;
-    size_t disk_size;
-    unsigned int num_file;
-
-    fs_t * filesystem = create_filesystem(op_file);
-
-    fclose(op_file);
-}
