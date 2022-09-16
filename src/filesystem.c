@@ -392,7 +392,6 @@ status fs_delete_file(fs_t *fs, process_t *process, char filename, char *res_mes
         return FAILURE;
     }
     
-    // TODO: Verificar o que acontece aqui quando o FS nao eh continuo.
     if (attributes->initial == 1) {
         return contiguous_delete_file(fs, process, attributes, res_message);
     } 
