@@ -305,13 +305,6 @@ status fs_create_file(fs_t *fs, int process_id, char filename, size_t size, char
 status contiguous_delete_file(fs_t *fs, process_t *process, file_attr_t *attributes, char *res_message) {
     int idx = attributes->first_block;
 
-    // Caso o processo não seja real-time e não seja dono do arquivo
-    // informa erro
-    if (process->priority != 0 && attributes->owner_proc_id != process->id) {
-        snprintf(res_message, BUFFER_SIZE, "O Processo %d não pode deletar o arquivo %c porque nao foi criado por ele.", process->id, attributes->name);
-        return FAILURE;
-    }
-
     // Percorre blocos contíguos, limpando os dados
     for (size_t j = 0; j < attributes->size; j++) {
         fs->blocks[idx+j].filename = '0';
@@ -328,13 +321,6 @@ status contiguous_delete_file(fs_t *fs, process_t *process, file_attr_t *attribu
  * bloco. Retorna o status da operação (SUCCESS, FAILURE). */
 status linked_delete_file(fs_t *fs, process_t *process, file_attr_t *attributes, char *res_message) {
     int next = attributes->first_block;
-
-    // Caso o processo não seja real-time e não seja dono do arquivo
-    // informa erro
-    if (process->priority != 0 && attributes->owner_proc_id != process->id) {
-        snprintf(res_message, BUFFER_SIZE, "O Processo %d não pode deletar o arquivo %c porque nao foi criado por ele.", process->id, attributes->name);
-        return FAILURE;
-    }
 
     // Percorre ponteiros de cada bloco do arquivo, limpando os dados
     do {
@@ -358,13 +344,6 @@ status indexed_delete_file(fs_t *fs, process_t *process, file_attr_t *attributes
     size_t idx_size = fs->blocks[idx_block].size;
     int *indexes = fs->blocks[idx_block].indexes;
 
-    // Caso o processo não seja real-time e não seja dono do arquivo
-    // informa erro
-    if (process->priority != 0 && attributes->owner_proc_id != process->id) {
-        snprintf(res_message, BUFFER_SIZE, "O Processo %d não pode deletar o arquivo %c porque nao foi criado por ele.", process->id, attributes->name);
-        return FAILURE;
-    }
-
     // Acessa cada bloco indexado pela tabela de índices, limpando os dados
     for (size_t i = 0; i < idx_size; i++) {
         int idx = indexes[i];
@@ -382,37 +361,50 @@ status indexed_delete_file(fs_t *fs, process_t *process, file_attr_t *attributes
     return SUCCESS;
 }
 
+/* Função que verifica se um processo tem permissão para deletar um arquivo.
+ */
+bool can_delete_file(process_t* process, file_attr_t *attributes) {
+    // Processo real-time pode deletar qualquer arquivo.
+    if (process->priority == 0)
+        return true;
+
+    // Arquivos iniciais so podem ser deletados por processo real-time.
+    if (attributes->initial)
+        return false;
+
+    // Demais processos (de usuario) so podem deletar um raquivo se o forem o dono do arquivo.  
+    return attributes->owner_proc_id == process->id;
+}
+
 /* Função que recebe arquivo para criado e decide qual função de 
  * deleção de arquivo será usada baseado no tipo de alocação do
  * sistema de arquivos. Retorna o status da operação (SUCCESS, FAILURE). */
 status fs_delete_file(fs_t *fs, process_t *process, char filename, char *res_message) {
-    status s = FAILURE;
     file_attr_t *attributes = fs_get_file_attr(fs, filename);
 
-    // Caso atributos do arquivo seja nulo (não existe o arquivo
-    // no diretório), informa erro.
-    if (attributes != NULL) {
-        // Caso o arquivo tenha sido criado junto ao disco (initial == 1)
-        // usa deleção do tipo contígua;
-        if (attributes->initial == 1) {
-            s = contiguous_delete_file(fs, process, attributes, res_message);
-        } else {
-            switch (fs->type) {
-                case CONTIGUOUS:
-                    s = contiguous_delete_file(fs, process, attributes, res_message);
-                    break;
-                case LINKED:
-                    s = linked_delete_file(fs, process, attributes, res_message);
-                    break;
-                case INDEXED:
-                    s = indexed_delete_file(fs, process, attributes, res_message);
-                    break;
-            }
-        }
-    } else {
+    if (attributes == NULL) {
         snprintf(res_message, BUFFER_SIZE, "Arquivo %c nao existe.", filename);
+        return FAILURE;
     }
-    return s;
+
+    if (!can_delete_file(process, attributes)) {
+        snprintf(res_message, BUFFER_SIZE, "O Processo %d não pode deletar o arquivo %c porque nao foi criado por ele.", process->id, attributes->name);
+        return FAILURE;
+    }
+    
+    // TODO: Verificar o que acontece aqui quando o FS nao eh continuo.
+    if (attributes->initial == 1) {
+        return contiguous_delete_file(fs, process, attributes, res_message);
+    } 
+    
+    switch (fs->type) {
+        case CONTIGUOUS:
+            return contiguous_delete_file(fs, process, attributes, res_message);
+        case LINKED:
+            return linked_delete_file(fs, process, attributes, res_message);
+        case INDEXED:
+            return indexed_delete_file(fs, process, attributes, res_message);
+    }
 }
 
 /* Função que executa a simulação das operações no sistema de arquivos,

@@ -67,6 +67,8 @@ status linked_delete_file(fs_t *fs, process_t *process, file_attr_t *attributes,
 status indexed_delete_file(fs_t *fs, process_t *process, file_attr_t *attributes, char *err_message);
 status fs_delete_file(fs_t *fs, process_t * process, char filename, char *err_message);
 
+bool can_delete_file(process_t* process, file_attr_t *attributes);
+
 void simulate_fs(FILE *file, fs_t *filesystem, p_list_t *process_list);
 void dump_blocks(fs_t *filesystem);
 
