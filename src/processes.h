@@ -13,18 +13,18 @@ typedef struct {
     int cpu_time;
 } process_t;
 
-/* Estrutura representando lista de processos. */
+/* Estrutura que representa lista de processos. */
 typedef struct {
     size_t size;
     process_t *processes;
 } p_list_t;
 
 p_list_t * parse_processes(char *filename);
+process_t * get_process(p_list_t *list, int process_id);
 void dump_processes(p_list_t * list);
 
 p_list_t * p_list_init(void);
 void p_list_append(p_list_t *list, process_t process);
 void p_list_destroy(p_list_t *list);
-process_t * get_process(p_list_t *list, int process_id);
 
 #endif // __PROCESSES_H

@@ -1,12 +1,13 @@
 #include <string.h>
+#include <math.h>
 #include "filesystem.h"
 #include "utils.h"
 
 fs_t * fs_init(alloc_type type, size_t size) {
-    fs_t *filesystem = alloc_or_panic(sizeof(fs_t));
-    filesystem->type = type;
+    fs_t *filesystem = alloc_or_panic(sizeof(fs_t)); filesystem->type = type;
     filesystem->size = size;
     filesystem->blocks = alloc_or_panic(size * sizeof(block_t));
+    filesystem->root.attributes = NULL;
     filesystem->free_blocks = alloc_or_panic(size * sizeof(int));
     filesystem->root.file_count = 0;
     filesystem->root.attributes = NULL;
@@ -14,6 +15,7 @@ fs_t * fs_init(alloc_type type, size_t size) {
     // Inicializa disco com caracteres 0 (zero) e marca blocos como livres
     for (size_t i = 0; i < size; i++) {
         filesystem->blocks[i].filename = '0';
+        filesystem->blocks[i].size = 0;
         filesystem->free_blocks[i] = 1;
     }
 
@@ -45,6 +47,7 @@ void fs_populate_blocks(FILE *op_file, fs_t *filesystem, unsigned int num_files)
 
     // Lê num_files linhas do arquivo de operações: arquivos inicialmente no disco
     for (unsigned int i = 0; i < num_files; i++) {
+        int prev_idx = -1;
         fscanf(op_file, "%c, %zu, %zu\n", &filename, &idx, &size);
 
         // Checa se o arquivo sendo inserido respeita os limites do disco
@@ -53,7 +56,7 @@ void fs_populate_blocks(FILE *op_file, fs_t *filesystem, unsigned int num_files)
                 filesystem->blocks[idx+i].filename = filename;
                 filesystem->free_blocks[idx+i] = 0;
             }
-            fs_add_to_root(filesystem, 0, filename, size, idx);
+            fs_add_to_root(filesystem, 0, filename, size, idx, 1);
         } else {
             fprintf(stderr, COLOR_RED"[ERRO]"COLOR_RST" Nao pode inserir arquivo no disco, "
                     "arquivo %c ultrapassa limite de armazenamento.\n", filename);
@@ -61,12 +64,13 @@ void fs_populate_blocks(FILE *op_file, fs_t *filesystem, unsigned int num_files)
     }
 }
 
-void fs_add_to_root(fs_t *fs, int owner_proc_id, char filename, size_t size, size_t first_block) {
+void fs_add_to_root(fs_t *fs, int owner_proc_id, char filename, size_t size, size_t first_block, int initial) {
     // Inicializa atributos do arquivo
     file_attr_t file;
     file.owner_proc_id = owner_proc_id;
     file.name = filename;
     file.size = size;
+    file.initial = initial;
     file.first_block = first_block;
 
     // Adiciona atributos do arquivo no array de atributos de arquivos no root
@@ -125,6 +129,16 @@ file_attr_t * fs_get_file_attr(fs_t *fs, char filename) {
     return NULL;
 }
 
+int fs_count_free_blocks(fs_t *fs) {
+    int count = 0;
+
+    for (size_t i = 0; i < fs->size; i++)
+        if (fs->free_blocks[i] == 1)
+            count++;
+
+    return count;
+}
+
 status contiguous_create_file(fs_t *fs, int process_id, char filename, size_t size, char *res_message) {
     size_t i, j;
     int contiguous_blocks;
@@ -140,7 +154,7 @@ status contiguous_create_file(fs_t *fs, int process_id, char filename, size_t si
                     fs->blocks[i+k].filename = filename;
                     fs->free_blocks[i+k] = 0;
                 }
-                fs_add_to_root(fs, process_id, filename, size, i);
+                fs_add_to_root(fs, process_id, filename, size, i, 0);
                 snprintf(res_message, BUFFER_SIZE, "O processo %d criou o arquivo %c.", process_id, filename);
                 return SUCCESS;
             }
@@ -151,10 +165,83 @@ status contiguous_create_file(fs_t *fs, int process_id, char filename, size_t si
 }
 
 status linked_create_file(fs_t *fs, int process_id, char filename, size_t size, char *res_message) {
+    int n_free_blocks = fs_count_free_blocks(fs);
+    int prev_idx = -1;
+    int first_block = -1;
+
+    // Calcula quantos blocos serão ocupados considerando que 10% é ocupado pelo ponteiro
+    int new_size = ceil(size*1.1);
+
+    if (n_free_blocks >= new_size) {
+        for (int i = 0; i < fs->size && new_size > 0; i++) {
+            if (fs->free_blocks[i] == 1) {
+                new_size--;
+
+                // Armazena primeiro bloco do arquivo
+                if (first_block < 0) {
+                    first_block = i;
+                }
+
+                // Adiciona ponteiro no bloco anterior ou marca com zero, caso seja o último bloco do arquivo
+                if (prev_idx >= 0)
+                    fs->blocks[prev_idx].next = i;
+                if (new_size == 0)
+                    fs->blocks[i].next = -1;
+
+                fs->blocks[i].filename = filename;
+                fs->free_blocks[i] = 0;
+                prev_idx = i;
+            }
+        }
+        fs_add_to_root(fs, process_id, filename, size, first_block, 0);
+        snprintf(res_message, BUFFER_SIZE, "O processo %d criou o arquivo %c.", process_id, filename);
+        return SUCCESS;
+    } else {
+        snprintf(res_message, BUFFER_SIZE, "O processo %d nao criou o arquivo %c (falta de espaco).", process_id, filename);
+    }
     return FAILURE;
 }
 
 status indexed_create_file(fs_t *fs, int process_id, char filename, size_t size, char *res_message) {
+    int n_free_blocks = fs_count_free_blocks(fs);
+    int first_block = -1;
+    int idx_table_size = 0;
+    int *indexes = NULL;
+
+    // O tamanho do arquivo vai ser o original + um bloco de índices
+    int new_size = size+1;
+
+    if (n_free_blocks >= new_size) {
+        for (size_t i = 0; i < fs->size && new_size > 0; i++) {
+            if (fs->free_blocks[i] == 1) {
+                new_size--;
+
+                // Armazena primeiro bloco do arquivo
+                if (first_block < 0) {
+                    first_block = i;
+                    fs->blocks[i].filename = 'I';
+                    fs->free_blocks[i] = 0;
+                    continue;
+                }
+
+                // Adiciona ponteiro no bloco no bloco de índices
+                fs->blocks[first_block].size++;
+                idx_table_size = fs->blocks[first_block].size;
+                fs->blocks[first_block].indexes[idx_table_size-1] = i;
+
+                fs->blocks[i].filename = filename;
+                fs->free_blocks[i] = 0;
+            }
+        }
+        for (int i = 0; i < idx_table_size; i++)
+            printf("%d ", fs->blocks[first_block].indexes[i]);
+        printf("\n");
+        fs_add_to_root(fs, process_id, filename, size, first_block, 0);
+        snprintf(res_message, BUFFER_SIZE, "O processo %d criou o arquivo %c.", process_id, filename);
+        return SUCCESS;
+    } else {
+        snprintf(res_message, BUFFER_SIZE, "O processo %d nao criou o arquivo %c (falta de espaco).", process_id, filename);
+    }
     return FAILURE;
 }
 
@@ -197,11 +284,47 @@ status contiguous_delete_file(fs_t *fs, process_t *process, file_attr_t *attribu
 }
 
 status linked_delete_file(fs_t *fs, process_t *process, file_attr_t *attributes, char *res_message) {
-    return FAILURE;
+    int next = attributes->first_block;
+
+    if (process->priority != 0 && attributes->owner_proc_id != process->id) {
+        snprintf(res_message, BUFFER_SIZE, "O Processo %d não pode deletar o arquivo %c porque nao foi criado por ele.", process->id, attributes->name);
+        return FAILURE;
+    }
+
+    do {
+        fs->blocks[next].filename = '0';
+        fs->free_blocks[next] = 1;
+        next = fs->blocks[next].next;
+    } while (next > 0);
+
+    fs_remove_from_root(fs, attributes->name);
+        
+    snprintf(res_message, BUFFER_SIZE, "O processo %d deletou o arquivo %c.", process->id, attributes->name);
+    return SUCCESS;
 }
 
 status indexed_delete_file(fs_t *fs, process_t *process, file_attr_t *attributes, char *res_message) {
-    return FAILURE;
+    int idx_block = attributes->first_block;
+    size_t idx_size = fs->blocks[idx_block].size;
+    int *indexes = fs->blocks[idx_block].indexes;
+
+    if (process->priority != 0 && attributes->owner_proc_id != process->id) {
+        snprintf(res_message, BUFFER_SIZE, "O Processo %d não pode deletar o arquivo %c porque nao foi criado por ele.", process->id, attributes->name);
+        return FAILURE;
+    }
+
+    fs->blocks[idx_block].filename = '0';
+    fs->free_blocks[idx_block] = 1;
+
+    for (size_t i = 0; i < idx_size; i++) {
+        int idx = indexes[i];
+        fs->blocks[idx].filename = '0';
+        fs->free_blocks[idx] = 1;
+    }
+    fs_remove_from_root(fs, attributes->name);
+        
+    snprintf(res_message, BUFFER_SIZE, "O processo %d deletou o arquivo %c.", process->id, attributes->name);
+    return SUCCESS;
 }
 
 /* Função que recebe arquivo para ser deleteado, sobrescreve
@@ -211,16 +334,20 @@ status fs_delete_file(fs_t *fs, process_t *process, char filename, char *res_mes
     file_attr_t *attributes = fs_get_file_attr(fs, filename);
 
     if (attributes != NULL) {
-        switch (fs->type) {
-            case CONTIGUOUS:
-                s = contiguous_delete_file(fs, process, attributes, res_message);
-                break;
-            case LINKED:
-                s = linked_delete_file(fs, process, attributes, res_message);
-                break;
-            case INDEXED:
-                s = indexed_delete_file(fs, process, attributes, res_message);
-                break;
+        if (attributes->initial == 1) {
+            s = contiguous_delete_file(fs, process, attributes, res_message);
+        } else {
+            switch (fs->type) {
+                case CONTIGUOUS:
+                    s = contiguous_delete_file(fs, process, attributes, res_message);
+                    break;
+                case LINKED:
+                    s = linked_delete_file(fs, process, attributes, res_message);
+                    break;
+                case INDEXED:
+                    s = indexed_delete_file(fs, process, attributes, res_message);
+                    break;
+            }
         }
     } else {
         snprintf(res_message, BUFFER_SIZE, "Arquivo %c nao existe.", filename);
@@ -248,13 +375,7 @@ void simulate_fs(FILE *op_file, fs_t *filesystem, p_list_t *process_list) {
     // Lê operações no arquivo
     while (fscanf(op_file, "%d, %d, %c, %zu", &process_id, &code, &filename, &file_size) != EOF) {
         // Inicializa estruturas de dados para armazenar resultado das operações
-        op_t operation;
-        operation.process_id = process_id;
-        operation.code = code;
-        operation.filename = filename;
-        operation.n_blocks = file_size;
-
-        op_result_info_t *res = op_result_info_init(op_count, operation);
+        op_result_info_t *res = op_result_info_init(op_count, process_id);
         op_count++;
 
         process_t * proc = get_process(process_list, process_id);
@@ -282,17 +403,23 @@ void simulate_fs(FILE *op_file, fs_t *filesystem, p_list_t *process_list) {
 
         // Adiciona resultado no log
         op_log_append(log, *res);
-        free(res);
+
+        printf("\n----------- OPERACAO %d\n", res->op_number);
         dump_blocks(filesystem);
+
+        free(res);
     }
     dump_log(log);
     op_log_destroy(log);
+    dump_blocks(filesystem);
 
     fclose(op_file);
 }
 
 void dump_blocks(fs_t *filesystem) {
     size_t size = filesystem->size;
+
+    printf("\nMapa de ocupacao do disco:\n");
 
     // Imprime linha separadora de cima
     printf("-");
@@ -311,4 +438,6 @@ void dump_blocks(fs_t *filesystem) {
     for (size_t i = 0; i < 4*size; i++)
         printf("-");
     printf("\n");
+
+    printf("Quantidade de blocos livres: %d\n", fs_count_free_blocks(filesystem));
 }

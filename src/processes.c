@@ -19,7 +19,6 @@ p_list_t * parse_processes(char *filename) {
         p.id = id;
         p.priority = priority;
         p.cpu_time = cpu_time;
-        p.exec_count = 0;
         p_list_append(list, p);
     }
     fclose(p_file);
@@ -60,8 +59,10 @@ void p_list_destroy(p_list_t *list) {
     free(list);
 }
 
-
+/* Recupera a struct process_id cujo id é igual ao passado
+ * como argumento. */
 process_t * get_process(p_list_t *list, int process_id) {
+    // Busca linear na lista de processos
     for (size_t i = 0; i < list->size; i++)  {
         if (list->processes[i].id == process_id)
             return &list->processes[i];

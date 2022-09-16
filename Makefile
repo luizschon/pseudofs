@@ -1,7 +1,7 @@
 # Variáveis de compilação
 CC = gcc
 CFLAGS = -Wall -Wextra -Wpedantic -std=c99
-LIBS = -pthread
+LIBS = -lm
 
 # Nome dos diretórios
 SRC = src

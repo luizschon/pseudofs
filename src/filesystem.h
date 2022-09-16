@@ -7,29 +7,20 @@
 #include <stdio.h>
 #include "operations.h"
 
+#define MAX 1000
+
 typedef enum { CONTIGUOUS = 1, LINKED = 2, INDEXED = 3 } alloc_type;
 typedef int* bitmap;
 
 typedef struct {
-    char filename; 
+    char filename;
     int next;
-} lnk_block_t;
-
-typedef struct {
-    char filename;
     size_t size;
-    int *indexes;
-} idx_block_t;
-
-typedef struct {
-    char filename;
-    union {
-       lnk_block_t linked_block_info; 
-       idx_block_t indexed_block_info; 
-    } block_type;
+    int indexes[MAX];
 } block_t;
 
 typedef struct {
+    int initial;
     int owner_proc_id;
     char name;
     size_t size;
@@ -52,10 +43,11 @@ typedef struct {
 fs_t * fs_init(alloc_type type, size_t size);
 fs_t * create_filesystem(FILE *operations_file);
 void fs_populate_blocks(FILE *operations_file, fs_t *filesystem, unsigned int num_files);
-void fs_add_to_root(fs_t *fs, int owner_proc_id, char filename, size_t size, size_t first_block);
+void fs_add_to_root(fs_t *fs, int owner_proc_id, char filename, size_t size, size_t first_block, int initial);
 void fs_remove_from_root(fs_t *fs, char filename);
 void fs_destroy(fs_t *filesystem);
 file_attr_t * fs_get_file_attr(fs_t *fs, char filename);
+int fs_count_free_blocks(fs_t *fs);
 
 status contiguous_create_file(fs_t *fs, int process_id, char filename, size_t size, char *err_message);
 status linked_create_file(fs_t *fs, int process_id, char filename, size_t size, char *err_message);

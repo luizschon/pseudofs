@@ -12,19 +12,13 @@
 typedef enum { CREATE,  DELETE  } opcode;
 typedef enum { FAILURE, SUCCESS } status;
 
-typedef struct {
-    int process_id;
-    opcode code;
-    char filename;
-    size_t n_blocks;
-} op_t;
 
 typedef struct {
     unsigned int op_number;
+    int process_id;
     status s;
     char description[BUFFER_SIZE];
     char message[BUFFER_SIZE];
-    op_t operation;
 } op_result_info_t;
 
 typedef struct {
@@ -33,7 +27,7 @@ typedef struct {
 } op_log_t;
 
 // op_result_info_t * op_result_info_init(unsigned int op_num, status s, char *desc);
-op_result_info_t * op_result_info_init(unsigned int op_number, op_t operation);
+op_result_info_t * op_result_info_init(unsigned int op_number, int process_id);
 op_log_t * op_log_init();
 void op_log_append(op_log_t *log, op_result_info_t res);
 void op_log_destroy(op_log_t *log);
