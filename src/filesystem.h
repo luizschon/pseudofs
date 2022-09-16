@@ -55,6 +55,7 @@ void fs_populate_blocks(FILE *operations_file, fs_t *filesystem, unsigned int nu
 void fs_add_to_root(fs_t *fs, int owner_proc_id, char filename, size_t size, size_t first_block);
 void fs_remove_from_root(fs_t *fs, char filename);
 void fs_destroy(fs_t *filesystem);
+file_attr_t * fs_get_file_attr(fs_t *fs, char filename);
 
 status contiguous_create_file(fs_t *fs, int process_id, char filename, size_t size, char *err_message);
 status linked_create_file(fs_t *fs, int process_id, char filename, size_t size, char *err_message);

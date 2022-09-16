@@ -78,7 +78,38 @@ void fs_add_to_root(fs_t *fs, int owner_proc_id, char filename, size_t size, siz
 }
 
 void fs_remove_from_root(fs_t *fs, char filename) {
+    int file_count = fs->root.file_count;
+    int idx_to_remove = -1;
 
+    // Busca linear para encontrar índice do arquivo a ser removido
+    for (size_t i = 0; i < file_count; i++) {
+        if (fs->root.attributes[i].name == filename) {
+            idx_to_remove = i;
+            break;
+        }
+    }
+
+    // Caso não encontra, imprime mensagem de erro
+    if (idx_to_remove == -1) {
+        fprintf(stderr, COLOR_RED"[ERRO]"COLOR_RST" Tentativa de remover arquivo do root "
+                "que nao existe (arquivo %c).\n", filename);
+        return;
+    }
+
+    // Aloca array temporário
+    file_count = fs->root.file_count--;
+    file_attr_t *temp = alloc_or_panic(file_count * sizeof(file_attr_t));
+
+    // Copia valores ANTES do índice a ser removido
+    if (idx_to_remove != 0)
+        memcpy(temp, fs->root.attributes, idx_to_remove * sizeof(file_attr_t));
+
+    // Copia valores DEPOIS do índice a ser removido
+    if (idx_to_remove != file_count-1)
+        memcpy(temp, fs->root.attributes+idx_to_remove+1, (file_count-idx_to_remove-1) * sizeof(file_attr_t));
+    
+    free(fs->root.attributes);
+    fs->root.attributes = temp;
 }
 
 file_attr_t * fs_get_file_attr(fs_t *fs, char filename) {
@@ -229,9 +260,9 @@ void simulate_fs(FILE *op_file, fs_t *filesystem, p_list_t *process_list) {
         process_t * proc = get_process(process_list, process_id);
 
         if (code == CREATE)
-            snprintf(res->description, BUFFER_SIZE, "Operacao do processo %d - Criar arquivo %c", process_id, filename);
+            snprintf(res->description, BUFFER_SIZE, "Criar arquivo %c", filename);
         else
-            snprintf(res->description, BUFFER_SIZE, "Operacao do processo %d - Deletar arquivo %c", process_id, filename);
+            snprintf(res->description, BUFFER_SIZE, "Deletar arquivo %c", filename);
 
 
         if (proc == NULL) {

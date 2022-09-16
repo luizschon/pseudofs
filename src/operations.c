@@ -35,7 +35,7 @@ void dump_log(op_log_t *log) {
     for (size_t i = 0; i < log->size; i++) {
         res = log->res_arr[i];
         printf(COLOR_GRN"\n[INFO]\n"COLOR_RST);
-        printf("Operacao n.%d - %s:\n", res.op_number, res.description);
+        printf("Operacao n.%d - Operacao do processo %d - %s:\n", res.op_number, res.operation.process_id, res.description);
         printf("    STATUS: %s\n"COLOR_RST, (res.s == SUCCESS) ? COLOR_GRN"SUCESSO" : COLOR_RED"FALHA");
         printf("    RESULTADO: %s\n", res.message);
     }
